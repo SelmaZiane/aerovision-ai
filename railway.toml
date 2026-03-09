@@ -2,5 +2,5 @@
 builder = "dockerfile"
 
 [deploy]
-startCommand = "uvicorn app:app --host 0.0.0.0 --port $PORT"
+startCommand = "uvicorn app:app --host 0.0.0.0 --port 7860"
 restartPolicyType = "on_failure"
