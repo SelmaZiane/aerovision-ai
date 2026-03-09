@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+timm
+torch
+torchvision
+huggingface_hub
+Pillow

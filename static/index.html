@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroVision AI — Aircraft Identification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── RESET ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #040810;
+  --bg2:       #070d1a;
+  --surface:   #0b1221;
+  --surface2:  #101b2e;
+  --border:    #162035;
+  --border2:   #1e2f4a;
+  --accent:    #00c8ff;
+  --accent2:   #0066ff;
+  --amber:     #ffb700;
+  --success:   #00e676;
+  --warning:   #ff9100;
+  --danger:    #ff3d5a;
+  --text:      #e8eef8;
+  --muted:     #4a6080;
+  --muted2:    #2a3f5f;
+  --r:         10px;
+  --font-tech: 'Rajdhani', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND GRID ───────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(0,200,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 5%, rgba(0,102,255,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 85% 90%, rgba(0,200,255,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 60% at 50% 50%, rgba(4,8,16,0.6) 0%, transparent 80%);
+  pointer-events: none;
+}
+
+/* ── HEADER ────────────────────────────────────────────────── */
+header {
+  position: relative; z-index: 100;
+  padding: 0 40px;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border2);
+  background: rgba(4,8,16,0.92);
+  backdrop-filter: blur(16px);
+}
+.logo {
+  display: flex; align-items: center; gap: 14px;
+}
+.logo-mark {
+  position: relative;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-mark svg { width: 36px; height: 36px; }
+.logo-text h1 {
+  font-family: var(--font-tech);
+  font-size: 1.35rem; font-weight: 700;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, #fff 30%, var(--accent));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.logo-text p { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+
+.header-right {
+  display: flex; align-items: center; gap: 20px;
+}
+.hud-stat {
+  text-align: right;
+  font-family: var(--font-mono);
+}
+.hud-stat .val { font-size: 0.85rem; font-weight: 500; color: var(--accent); }
+.hud-stat .lbl { font-size: 0.55rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+.status-dot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid rgba(0,230,118,0.25);
+  border-radius: 100px;
+  background: rgba(0,230,118,0.06);
+  font-size: 0.68rem; font-weight: 600; color: var(--success);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.status-dot::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+  animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* ── MAIN LAYOUT ───────────────────────────────────────────── */
+main {
+  position: relative; z-index: 1;
+  max-width: 1280px; margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+/* ── HERO / BANNER ─────────────────────────────────────────── */
+.hero {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; margin-bottom: 36px;
+  flex-wrap: wrap;
+}
+.hero-title {
+  font-family: var(--font-tech);
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+}
+.hero-title span {
+  background: linear-gradient(135deg, var(--accent) 0%, #4db8ff 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero-sub {
+  font-size: 0.82rem; color: var(--muted); margin-top: 8px;
+  max-width: 460px; line-height: 1.7;
+}
+.stats-row {
+  display: flex; gap: 0; flex-wrap: wrap;
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--surface);
+}
+.stat {
+  padding: 14px 22px;
+  text-align: center;
+  border-right: 1px solid var(--border2);
+}
+.stat:last-child { border-right: none; }
+.stat-num {
+  font-family: var(--font-tech);
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.stat-label {
+  font-size: 0.6rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-top: 4px;
+}
+
+/* ── WORKSPACE GRID ────────────────────────────────────────── */
+.workspace {
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } }
+
+/* ── PANEL (both cards) ────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.panel-header {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.015);
+}
+.panel-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+}
+.panel-title {
+  font-family: var(--font-tech);
+  font-size: 0.85rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text);
+}
+.panel-body { padding: 18px; }
+
+/* ── UPLOAD ZONE ───────────────────────────────────────────── */
+.upload-zone {
+  position: relative;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  min-height: 340px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.25s;
+  background: var(--bg2);
+}
+.upload-zone::before, .upload-zone::after {
+  content: '';
+  position: absolute;
+  width: 24px; height: 24px;
+  border-color: var(--accent);
+  border-style: solid;
+  opacity: 0.5;
+  transition: opacity 0.25s;
+}
+.upload-zone::before { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+.upload-zone::after  { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--accent);
+}
+.upload-zone:hover::before, .upload-zone:hover::after,
+.upload-zone.dragover::before, .upload-zone.dragover::after {
+  opacity: 1;
+}
+/* extra corners */
+.upload-zone .corner-tr {
+  position: absolute; top: 10px; right: 10px;
+  width: 24px; height: 24px;
+  border-top: 2px solid var(--accent);
+  border-right: 2px solid var(--accent);
+  opacity: 0.5; transition: opacity 0.25s;
+}
+.upload-zone .corner-bl {
+  position: absolute; bottom: 10px; left: 10px;
+  width: 24px; height: 24px;
+  border-bottom: 2px solid var(--accent);
+  border-left: 2px solid var(--accent);
+  opacity: 0.5; transition: opacity 0.25s;
+}
+.upload-zone:hover .corner-tr, .upload-zone:hover .corner-bl,
+.upload-zone.dragover .corner-tr, .upload-zone.dragover .corner-bl { opacity: 1; }
+
+.dz-content { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.dz-icon { font-size: 2.8rem; opacity: 0.25; }
+.dz-title { font-family: var(--font-tech); font-size: 1rem; font-weight: 600; opacity: 0.7; letter-spacing: 0.05em; }
+.dz-sub   { font-size: 0.74rem; color: var(--muted); }
+
+.upload-zone img#preview {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: none;
+}
+.upload-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(4,8,16,0.85) 0%, transparent 50%);
+  display: none;
+  align-items: flex-end;
+  padding: 14px;
+}
+.upload-zone.has-image img#preview,
+.upload-zone.has-image .upload-overlay { display: flex; }
+.upload-zone.has-image .dz-content { display: none; }
+
+/* Scan line animation during loading */
+.upload-zone.scanning::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  box-shadow: 0 0 12px var(--accent);
+  animation: scanline 1.6s linear infinite;
+  border: none; width: auto; bottom: auto;
+}
+@keyframes scanline {
+  0%   { top: 0; }
+  100% { top: 100%; }
+}
+
+.change-btn {
+  font-family: var(--font-mono);
+  font-size: 0.7rem; color: #fff;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 5px 12px; border-radius: 5px;
+  cursor: pointer; backdrop-filter: blur(6px);
+  transition: background 0.2s;
+}
+.change-btn:hover { background: rgba(255,255,255,0.1); }
+input#fileInput { display: none; }
+
+/* ── IDENTIFY BUTTON ───────────────────────────────────────── */
+.btn-identify {
+  width: 100%; margin-top: 14px;
+  padding: 13px;
+  background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 100%);
+  border: none; border-radius: 8px;
+  color: #fff;
+  font-family: var(--font-tech);
+  font-size: 1rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative; overflow: hidden;
+}
+.btn-identify::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+}
+.btn-identify:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,102,255,0.5), 0 0 0 1px rgba(0,200,255,0.3);
+}
+.btn-identify:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-identify .spinner {
+  display: none; width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto;
+}
+.btn-identify.loading .btn-text { display: none; }
+.btn-identify.loading .spinner  { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RESULT PANEL ──────────────────────────────────────────── */
+#results-panel { min-height: 400px; }
+
+.empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 360px; gap: 14px;
+  color: var(--muted); text-align: center;
+}
+.empty-state .es-icon {
+  font-size: 3rem; opacity: 0.15;
+  filter: grayscale(1);
+}
+.empty-state p { font-size: 0.82rem; max-width: 200px; line-height: 1.7; }
+.empty-state strong { color: var(--accent); }
+
+/* ── RESULT CONTENT ────────────────────────────────────────── */
+.result-header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.aircraft-name {
+  font-family: var(--font-tech);
+  font-size: 2.2rem; font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.1; margin-bottom: 6px;
+  color: #fff;
+}
+.aircraft-name.low-conf { color: var(--warning); }
+.aircraft-name .name-icon { font-size: 1.6rem; margin-right: 8px; vertical-align: middle; }
+
+.conf-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.conf-bar-wrap {
+  flex: 1;
+  height: 5px;
+  background: var(--border2);
+  border-radius: 100px; overflow: hidden;
+}
+.conf-bar-fill {
+  height: 100%; border-radius: 100px;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+.conf-bar-fill.high   { background: linear-gradient(90deg, var(--success), #00ff88); }
+.conf-bar-fill.medium { background: linear-gradient(90deg, var(--amber), #ffdd00); }
+.conf-bar-fill.low    { background: linear-gradient(90deg, var(--danger), #ff6b7a); }
+
+.conf-pill {
+  font-family: var(--font-mono);
+  font-size: 0.8rem; font-weight: 500;
+  padding: 3px 10px; border-radius: 100px;
+  white-space: nowrap;
+}
+.conf-pill.high   { color: var(--success); background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.25); }
+.conf-pill.medium { color: var(--amber);   background: rgba(255,183,0,0.1);  border: 1px solid rgba(255,183,0,0.25); }
+.conf-pill.low    { color: var(--danger);  background: rgba(255,61,90,0.1);  border: 1px solid rgba(255,61,90,0.25); }
+
+.cat-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 11px;
+  background: rgba(0,200,255,0.07);
+  border: 1px solid rgba(0,200,255,0.2);
+  border-radius: 6px;
+  font-size: 0.72rem; font-weight: 600; color: var(--accent);
+  letter-spacing: 0.04em;
+}
+.tta-tag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem; color: var(--muted);
+  padding: 3px 8px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+}
+
+/* ── TABS ──────────────────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.tab-btn {
+  padding: 8px 16px;
+  border: none; background: none;
+  color: var(--muted);
+  font-family: var(--font-tech);
+  font-size: 0.8rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s; margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── SPECS GRID ────────────────────────────────────────────── */
+.specs-full-name {
+  font-family: var(--font-tech);
+  font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.spec-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  transition: border-color 0.2s;
+}
+.spec-item:hover { border-color: var(--border2); }
+.spec-label {
+  font-size: 0.6rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 3px;
+}
+.spec-value {
+  font-family: var(--font-mono);
+  font-size: 0.82rem; font-weight: 500;
+  color: var(--text);
+}
+.spec-item.wide { grid-column: span 2; }
+
+.operators-row {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+}
+.operators-list {
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.7;
+}
+.operator-tag {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 9px;
+  border: 1px solid var(--border2);
+  border-radius: 100px;
+  font-size: 0.68rem; color: var(--muted);
+  background: var(--surface2);
+}
+
+.fun-fact {
+  padding: 12px 14px;
+  background: rgba(0,200,255,0.04);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: rgba(232,238,248,0.75);
+  margin-top: 6px;
+}
+.fun-fact strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ── TOP 5 ─────────────────────────────────────────────────── */
+.top5-list { display: flex; flex-direction: column; gap: 10px; }
+.top5-item { display: flex; flex-direction: column; gap: 5px; }
+.top5-row  { display: flex; justify-content: space-between; align-items: center; }
+.top5-name { font-size: 0.82rem; font-weight: 500; }
+.top5-rank { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); margin-right: 6px; }
+.top5-conf { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.top5-bar-track { height: 3px; background: var(--border); border-radius: 100px; overflow: hidden; }
+.top5-bar-fill  { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+.top5-item:first-child .top5-bar-fill { background: linear-gradient(90deg, var(--success), #00d4ff); }
+.top5-item:first-child .top5-name { color: var(--success); }
+
+/* ── ROUTER ────────────────────────────────────────────────── */
+.section-label {
+  font-family: var(--font-tech);
+  font-size: 0.65rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted); margin-bottom: 10px;
+}
+.router-scores { display: flex; flex-direction: column; gap: 6px; }
+.router-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 12px; border-radius: 6px;
+  background: var(--bg2); border: 1px solid var(--border);
+  font-size: 0.8rem;
+  transition: border-color 0.2s;
+}
+.router-item.selected {
+  border-color: rgba(0,200,255,0.35);
+  background: rgba(0,200,255,0.05);
+}
+.ri-arrow { color: var(--accent); font-size: 0.7rem; opacity: 0; }
+.router-item.selected .ri-arrow { opacity: 1; }
+.ri-name { flex: 1; font-weight: 500; }
+.ri-bar-wrap { width: 80px; height: 3px; background: var(--border); border-radius: 100px; overflow: hidden; }
+.ri-bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width 0.8s; }
+.router-item.selected .ri-bar-fill { background: linear-gradient(90deg, var(--success), var(--accent)); }
+.ri-conf { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); min-width: 40px; text-align: right; }
+
+/* ── CHALLENGER ────────────────────────────────────────────── */
+.challenger-box {
+  padding: 10px 14px; border-radius: 7px;
+  font-size: 0.77rem; line-height: 1.55;
+  margin-bottom: 14px;
+}
+.challenger-won  { background: rgba(0,230,118,0.06); border: 1px solid rgba(0,230,118,0.2); color: #6ee7b7; }
+.challenger-lost { background: rgba(255,145,0,0.06); border: 1px solid rgba(255,145,0,0.2); color: #fdba74; }
+
+/* ── LOW CONF WARNING ──────────────────────────────────────── */
+.low-conf-warn {
+  padding: 10px 14px;
+  background: rgba(255,61,90,0.06);
+  border: 1px solid rgba(255,61,90,0.2);
+  border-radius: 7px;
+  font-size: 0.77rem; color: #fca5a5;
+  margin-bottom: 14px; line-height: 1.55;
+}
+
+/* ── ANIMATIONS ────────────────────────────────────────────── */
+.fade-in { animation: fadeUp 0.45s ease forwards; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── FOOTER ────────────────────────────────────────────────── */
+footer {
+  position: relative; z-index: 1;
+  text-align: center; padding: 28px 24px;
+  border-top: 1px solid var(--border);
+  color: var(--muted); font-size: 0.72rem;
+  font-family: var(--font-mono);
+  line-height: 1.8;
+}
+footer a { color: var(--accent); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+/* ── SCROLLBAR ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 100px; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ───────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="8" fill="url(#lg)"/>
+        <path d="M6 20 L18 8 L30 20 L24 20 L24 28 L12 28 L12 20 Z" fill="white" fill-opacity="0.9"/>
+        <circle cx="18" cy="19" r="3" fill="url(#lg)" fill-opacity="0.8"/>
+        <defs>
+          <linearGradient id="lg" x1="0" y1="0" x2="36" y2="36">
+            <stop offset="0%" stop-color="#0066ff"/>
+            <stop offset="100%" stop-color="#00c8ff"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <h1>AeroVision AI</h1>
+      <p>Aircraft Identification System</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="hud-stat"><div class="val">173</div><div class="lbl">Types</div></div>
+    <div class="hud-stat"><div class="val">97%</div><div class="lbl">Router</div></div>
+    <div class="hud-stat"><div class="val">TTA×5</div><div class="lbl">Method</div></div>
+    <div class="status-dot">System Online</div>
+  </div>
+</header>
+
+<!-- ── MAIN ─────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div>
+      <div class="hero-title">Identify Any Aircraft<br><span>Instantly.</span></div>
+      <div class="hero-sub">
+        EVA-02 Large · 4 specialist models · Smart Challenger logic · TTA×5 inference
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-num">173</div><div class="stat-label">Aircraft Types</div></div>
+      <div class="stat"><div class="stat-num">97%</div><div class="stat-label">Router Accuracy</div></div>
+      <div class="stat"><div class="stat-num">95.7%</div><div class="stat-label">Best Specialist</div></div>
+      <div class="stat"><div class="stat-num">EVA-02</div><div class="stat-label">Backbone</div></div>
+    </div>
+  </div>
+
+  <!-- Workspace -->
+  <div class="workspace">
+
+    <!-- LEFT: Upload -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon">📷</div>
+        <span class="panel-title">Upload Photo</span>
+      </div>
+      <div class="panel-body">
+
+        <div class="upload-zone" id="dropZone">
+          <div class="corner-tr"></div>
+          <div class="corner-bl"></div>
+          <div class="dz-content">
+            <div class="dz-icon">🛩</div>
+            <div class="dz-title">Drop aircraft photo here</div>
+            <div class="dz-sub">or click to browse — JPG · PNG · WebP</div>
+          </div>
+          <img id="preview" alt="preview"/>
+          <div class="upload-overlay">
+            <button class="change-btn" onclick="clearImage(event)">✕ Change photo</button>
+          </div>
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*"/>
+
+        <button class="btn-identify" id="identifyBtn" onclick="identify()" disabled>
+          <span class="btn-text">⚡ Identify Aircraft</span>
+          <span class="spinner"></span>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: Results -->
+    <div class="panel" id="results-panel">
+      <div class="panel-header">
+        <div class="panel-icon">🎯</div>
+        <span class="panel-title">Identification Result</span>
+      </div>
+      <div class="panel-body" id="results-body">
+        <div class="empty-state">
+          <div class="es-icon">✈️</div>
+          <p>Upload a photo and click<br><strong>Identify Aircraft</strong></p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- ── FOOTER ────────────────────────────────────────────────── -->
+<footer>
+  <div>AeroVision AI — Router (EfficientNet-B0, 97%) + Smart Challenger + 4× EVA02-Large Specialists + TTA×5</div>
+  <div style="margin-top:4px">
+    Model: <a href="https://huggingface.co/selmamalak/aircraft-eva021" target="_blank">selmamalak/aircraft-eva021</a>
+  </div>
+</footer>
+
+<!-- ── JAVASCRIPT ─────────────────────────────────────────────── -->
+<script>
+const dropZone    = document.getElementById("dropZone");
+const fileInput   = document.getElementById("fileInput");
+const preview     = document.getElementById("preview");
+const identifyBtn = document.getElementById("identifyBtn");
+const resultsBody = document.getElementById("results-body");
+
+let selectedFile = null;
+
+// ── Drag & drop ──────────────────────────────────────────────
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith("image/")) setFile(file);
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) setFile(fileInput.files[0]);
+});
+
+function setFile(file) {
+  selectedFile = file;
+  preview.src = URL.createObjectURL(file);
+  dropZone.classList.add("has-image");
+  identifyBtn.disabled = false;
+}
+
+function clearImage(e) {
+  e.stopPropagation();
+  selectedFile = null;
+  preview.src = "";
+  dropZone.classList.remove("has-image");
+  identifyBtn.disabled = true;
+  fileInput.value = "";
+  resultsBody.innerHTML = `
+    <div class="empty-state">
+      <div class="es-icon">✈️</div>
+      <p>Upload a photo and click<br><strong>Identify Aircraft</strong></p>
+    </div>`;
+}
+
+// ── Identify ─────────────────────────────────────────────────
+async function identify() {
+  if (!selectedFile) return;
+
+  identifyBtn.disabled = true;
+  identifyBtn.classList.add("loading");
+  dropZone.classList.add("scanning");
+
+  resultsBody.innerHTML = `
+    <div class="empty-state">
+      <div style="font-size:2.2rem;animation:spin 1.4s linear infinite;display:inline-block">⚙️</div>
+      <p style="color:var(--muted)">Analyzing image...<br>
+      <small style="font-family:var(--font-mono);font-size:0.7rem">Router → Challenger → Specialist (TTA×5)</small></p>
+    </div>`;
+
+  const fd = new FormData();
+  fd.append("file", selectedFile);
+
+  try {
+    const res  = await fetch("/predict", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.error) {
+      resultsBody.innerHTML = `
+        <div class="empty-state">
+          <div style="font-size:2rem">⚠️</div>
+          <p style="color:var(--danger)">${data.error}</p>
+        </div>`;
+      return;
+    }
+    renderResult(data);
+  } catch (err) {
+    resultsBody.innerHTML = `
+      <div class="empty-state">
+        <div style="font-size:2rem">⚠️</div>
+        <p style="color:var(--danger)">Network error: ${err.message}</p>
+      </div>`;
+  } finally {
+    identifyBtn.disabled = false;
+    identifyBtn.classList.remove("loading");
+    dropZone.classList.remove("scanning");
+  }
+}
+
+// ── Format raw spec values with units ─────────────────────────
+function fmtSpec(key, val) {
+  if (val == null || val === "") return null;
+  switch (key) {
+    case "ceiling":      return typeof val === "number" ? val.toLocaleString() + " m" : val;
+    case "length":       return typeof val === "number" ? val.toFixed(2) + " m"       : val;
+    case "wingspan":     return typeof val === "number" ? val.toFixed(2) + " m"       : val;
+    case "weight_empty": return typeof val === "number"
+      ? (val >= 1000 ? (val/1000).toFixed(2) + " t" : val.toLocaleString() + " kg") : val;
+    case "max_takeoff":  return typeof val === "number"
+      ? (val >= 1000 ? (val/1000).toFixed(2) + " t" : val.toLocaleString() + " kg") : val;
+    case "capacity":     return typeof val === "number" ? val + " passengers"          : val;
+    case "first_flight": return String(val);
+    case "introduced":   return String(val);
+    default:             return val;
+  }
+}
+
+// ── Render result ─────────────────────────────────────────────
+function renderResult(d) {
+  const confClass = d.confidence >= 70 ? "high" : d.confidence >= 40 ? "medium" : "low";
+  const nameClass = d.low_conf ? "aircraft-name low-conf" : "aircraft-name";
+
+  // ── Specs ────────────────────────────────────────────────
+  let specsHtml = "";
+  if (d.specs && Object.keys(d.specs).length > 0) {
+    const s = d.specs;
+    const grid = [
+      ["manufacturer",  "Manufacturer"],
+      ["country",       "Country"],
+      ["type",          "Type"],
+      ["role",          "Role"],
+      ["first_flight",  "First Flight"],
+      ["introduced",    "Introduced"],
+      ["status",        "Status"],
+      ["engines",       "Engines"],
+      ["max_speed",     "Max Speed"],
+      ["range",         "Range"],
+      ["ceiling",       "Service Ceiling"],
+      ["length",        "Length"],
+      ["wingspan",      "Wingspan"],
+      ["weight_empty",  "Empty Weight"],
+      ["max_takeoff",   "Max Takeoff"],
+      ["crew",          "Crew"],
+      ["capacity",      "Capacity"],
+    ];
+
+    specsHtml += `<div class="specs-full-name">${s.full_name || d.name}</div>`;
+    specsHtml += `<div class="specs-grid">`;
+    for (const [k, label] of grid) {
+      const fv = fmtSpec(k, s[k]);
+      if (fv != null) {
+        specsHtml += `
+          <div class="spec-item">
+            <div class="spec-label">${label}</div>
+            <div class="spec-value">${fv}</div>
+          </div>`;
+      }
+    }
+    specsHtml += `</div>`;
+
+    if (s.operators && s.operators.length > 0) {
+      specsHtml += `
+        <div class="operators-row">
+          <div class="spec-label" style="margin-bottom:6px">Major Operators</div>
+          <div>${s.operators.slice(0, 6).map(op => `<span class="operator-tag">${op}</span>`).join("")}</div>
+        </div>`;
+    }
+
+    if (s.fun_fact) {
+      specsHtml += `
+        <div class="fun-fact">
+          <strong>Did you know?</strong>
+          ${s.fun_fact}
+        </div>`;
+    }
+  } else {
+    specsHtml = `<p style="color:var(--muted);font-size:.82rem;padding:8px 0">No specs available for this aircraft.</p>`;
+  }
+
+  // ── Top 5 ────────────────────────────────────────────────
+  const top5Html = d.top5.map((p, i) => {
+    const ranks = ["#1","#2","#3","#4","#5"];
+    return `
+      <div class="top5-item">
+        <div class="top5-row">
+          <span><span class="top5-rank">${ranks[i]}</span><span class="top5-name">${p.name}</span></span>
+          <span class="top5-conf">${p.conf}%</span>
+        </div>
+        <div class="top5-bar-track">
+          <div class="top5-bar-fill" style="width:${p.conf}%"></div>
+        </div>
+      </div>`;
+  }).join("");
+
+  // ── Router ───────────────────────────────────────────────
+  const routerHtml = d.router_scores.map(r => `
+    <div class="router-item ${r.selected ? "selected" : ""}">
+      <span class="ri-arrow">▶</span>
+      <span class="ri-name">${r.category}</span>
+      <div class="ri-bar-wrap"><div class="ri-bar-fill" style="width:${r.conf}%"></div></div>
+      <span class="ri-conf">${r.conf}%</span>
+    </div>`).join("");
+
+  // ── Challenger ───────────────────────────────────────────
+  let challengerHtml = "";
+  if (d.challenger && d.challenger.triggered) {
+    const won = d.challenger.won;
+    challengerHtml = `
+      <div class="challenger-box ${won ? "challenger-won" : "challenger-lost"}">
+        ${won ? "✅" : "ℹ️"} <strong>Challenger ${won ? "won" : "kept primary"}:</strong>
+        ${d.challenger.winner} &gt; ${d.challenger.loser}<br>
+        <em>Reason: ${d.challenger.reason}</em>
+      </div>`;
+  }
+
+  // ── Low conf ─────────────────────────────────────────────
+  const lowConfHtml = d.low_conf ? `
+    <div class="low-conf-warn">
+      ⚠️ <strong>Low Confidence (${d.confidence}%)</strong> — The aircraft may not be in the training set, or the image angle is unusual.
+    </div>` : "";
+
+  resultsBody.innerHTML = `
+    <div class="fade-in">
+
+      <div class="result-header">
+        <div class="${nameClass}">
+          <span class="name-icon">${d.category_icon}</span>${d.name}
+        </div>
+        <div class="conf-row">
+          <span class="conf-pill ${confClass}">${d.confidence}%</span>
+          <div class="conf-bar-wrap">
+            <div class="conf-bar-fill ${confClass}" style="width:${Math.min(d.confidence,100)}%"></div>
+          </div>
+          <span class="tta-tag">TTA×5</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="cat-badge">${d.category_icon} ${d.category} · ${d.category_acc} accuracy</span>
+        </div>
+      </div>
+
+      ${lowConfHtml}
+      ${challengerHtml}
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(this,'tab-specs')">Specs</button>
+        <button class="tab-btn"        onclick="switchTab(this,'tab-top5')">Top 5</button>
+        <button class="tab-btn"        onclick="switchTab(this,'tab-router')">Router</button>
+      </div>
+
+      <div id="tab-specs"  class="tab-pane active">${specsHtml}</div>
+      <div id="tab-top5"   class="tab-pane"><div class="top5-list">${top5Html}</div></div>
+      <div id="tab-router" class="tab-pane">
+        <div class="section-label">Category Probabilities</div>
+        <div class="router-scores">${routerHtml}</div>
+      </div>
+
+    </div>`;
+}
+
+function switchTab(btn, tabId) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById(tabId).classList.add("active");
+}
+</script>
+</body>
+</html>
