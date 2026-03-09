@@ -260,11 +260,15 @@ def run_pipeline(img_pil):
     }
 
 # ── FastAPI app ───────────────────────────────────────────────
+import threading
+def _bg_load():
+    print("Loading router in background...")
+    load_router()
+    print("Router ready!")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Loading router at startup...")
-    load_router()
-    print("Ready!")
+    threading.Thread(target=_bg_load, daemon=True).start()
     yield
 
 app = FastAPI(title="Aircraft ID API", lifespan=lifespan)
